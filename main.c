@@ -20,6 +20,8 @@ static void create_gc(Display *dpy, int screen, Window win,
 }
 
 void config(XEvent *, geom, Window[], Window *);
+void draw_resolution(Window win, Window indicator, geom getted_geom, GC gc,
+                     int indicator_height, int indicator_width);
 
 Display *dpy;
 
@@ -28,8 +30,10 @@ int main(int argc, char *argv[]) {
 
   //=============================
   Window indicator;
-  int w = 200;
-  int h = 160;
+  int indicator_width = 100;
+  int indicator_height = 100;
+  int panel_width = 180;
+  int panel_height = 140;
   Window panel;
   Window plus_box;
   Window minus_box;
@@ -44,7 +48,6 @@ int main(int argc, char *argv[]) {
   int win_width = 500;
   int win_height = 500;
   int screen;
-  char string[30];
 
   XEvent event;
   GC gc;
@@ -72,8 +75,8 @@ int main(int argc, char *argv[]) {
   XSelectInput(dpy, win, mask);
 
   hint.flags = (PMinSize | PPosition | PMaxSize);
-  hint.min_width = 150;
-  hint.min_height = 75;
+  hint.min_width = indicator_width;
+  hint.min_height = indicator_height;
   hint.max_width = disp_width;
   hint.max_height = disp_height;
   XSetNormalHints(dpy, win, &hint);
@@ -84,9 +87,10 @@ int main(int argc, char *argv[]) {
   attr.background_pixel = 0x00FFFF; /* WhitePixel(dpy, src); */
   attr.event_mask = (ButtonPressMask | ExposureMask);
 
-  indicator = XCreateWindow(
-      dpy, win, win_width / 2, win_height / 2, w, h, 0, depth, InputOutput,
-      CopyFromParent, (CWOverrideRedirect | CWBackPixel | CWEventMask), &attr);
+  indicator =
+      XCreateWindow(dpy, win, win_width / 2, win_height / 2, indicator_width,
+                    indicator_height, 0, depth, InputOutput, CopyFromParent,
+                    (CWOverrideRedirect | CWBackPixel | CWEventMask), &attr);
   //=============
   /* Tools panel */
   attr.override_redirect = True;
@@ -95,8 +99,8 @@ int main(int argc, char *argv[]) {
       (ButtonPressMask | ButtonReleaseMask | KeyPressMask | ExposureMask);
 
   panel = XCreateWindow(
-      dpy, win, 0, 0, w, h / 4, 0, depth, InputOutput, CopyFromParent,
-      (CWOverrideRedirect | CWBackPixel | CWEventMask), &attr);
+      dpy, win, 0, 0, panel_width, panel_height / 4, 0, depth, InputOutput,
+      CopyFromParent, (CWOverrideRedirect | CWBackPixel | CWEventMask), &attr);
   //=============
   /* Tools  for  panel */
   attr.override_redirect = True;
@@ -104,17 +108,20 @@ int main(int argc, char *argv[]) {
   attr.event_mask =
       (ButtonPressMask | ButtonReleaseMask | KeyPressMask | ExposureMask);
   tools[0] = 0;
-  tools[1] = plus_box = XCreateWindow(
-      dpy, panel, 5, 5, w / 5, h / 5, 0, depth, InputOutput, CopyFromParent,
-      (CWOverrideRedirect | CWBackPixel | CWEventMask), &attr);
+  tools[1] = plus_box =
+      XCreateWindow(dpy, panel, 5, 5, panel_width / 5, panel_height / 5, 0,
+                    depth, InputOutput, CopyFromParent,
+                    (CWOverrideRedirect | CWBackPixel | CWEventMask), &attr);
 
-  tools[2] = minus_box = XCreateWindow(
-      dpy, panel, 55, 5, w / 5, h / 5, 0, depth, InputOutput, CopyFromParent,
-      (CWOverrideRedirect | CWBackPixel | CWEventMask), &attr);
+  tools[2] = minus_box =
+      XCreateWindow(dpy, panel, 5 + panel_width / 4, 5, panel_width / 5,
+                    panel_height / 5, 0, depth, InputOutput, CopyFromParent,
+                    (CWOverrideRedirect | CWBackPixel | CWEventMask), &attr);
 
-  tools[3] = V_box = XCreateWindow(
-      dpy, panel, 105, 5, w / 5 * 2, h / 5, 0, depth, InputOutput,
-      CopyFromParent, (CWOverrideRedirect | CWBackPixel | CWEventMask), &attr);
+  tools[3] = V_box =
+      XCreateWindow(dpy, panel, 5 + panel_width / 2, 5, panel_width / 5 * 2,
+                    panel_height / 5, 0, depth, InputOutput, CopyFromParent,
+                    (CWOverrideRedirect | CWBackPixel | CWEventMask), &attr);
 
   //=============
   XSelectInput(dpy, panel, mask);
@@ -127,43 +134,25 @@ int main(int argc, char *argv[]) {
   XMapSubwindows(dpy, win);
   XMapSubwindows(dpy, panel);
 
-  XDrawString(dpy, plus_box, gc, 17, 20, "+", sizeof(char));
-  XDrawString(dpy, minus_box, gc, 17, 20, "-", sizeof(char));
-  XDrawString(dpy, V_box, gc, 35, 20, "V/H", 3 * sizeof(char));
   while (1) {
     XNextEvent(dpy, &event);
     switch (event.type) {
     case ConfigureNotify:
       break;
     case Expose:
-      XGetGeometry(dpy, win, &getted_geom.root_return, &getted_geom.x_return,
-                   &getted_geom.y_return, &getted_geom.width_return,
-                   &getted_geom.height_return, &getted_geom.border_width_return,
-                   &getted_geom.depth_return);
-
-      sprintf(string, "%d--%d", getted_geom.width_return,
-              getted_geom.height_return);
-      XClearWindow(dpy, indicator);
-      XMoveWindow(dpy, indicator, getted_geom.width_return / 2 - w / 2,
-                  getted_geom.height_return / 2 - h / 2);
-
-      XGetGeometry(dpy, indicator, &getted_geom.root_return,
-                   &getted_geom.x_return, &getted_geom.y_return,
-                   &getted_geom.width_return, &getted_geom.height_return,
-                   &getted_geom.border_width_return, &getted_geom.depth_return);
-
-      XDrawString(dpy, indicator, gc, getted_geom.width_return / 2 - w / 8,
-                  getted_geom.height_return / 2, string, strlen(string));
+      XDrawString(dpy, plus_box, gc, 17, 20, "+", sizeof(char));
+      XDrawString(dpy, minus_box, gc, 17, 20, "-", sizeof(char));
+      XDrawString(dpy, V_box, gc, 30, 20, "V/H", 3 * sizeof(char));
+      draw_resolution(win, indicator, getted_geom, gc, indicator_height,
+                      indicator_width);
       break;
 
-    case ButtonRelease:
+    case ButtonPress:
       config(&event, getted_geom, tools, &win);
+      if (event.xbutton.window == indicator)
+        return (1);
       break;
 
-    case KeyPress:
-      done = event.xkey.keycode;
-      return 1;
-      break;
     default:
       break;
     } /* switch */
@@ -206,4 +195,29 @@ void config(XEvent *ev, geom getted_geom, Window tools[], Window *win) {
   default:
     break;
   }
+}
+
+void draw_resolution(Window win, Window indicator, geom getted_geom, GC gc,
+                     int indicator_height, int indicator_width) {
+  char string[30];
+
+  XGetGeometry(dpy, win, &getted_geom.root_return, &getted_geom.x_return,
+               &getted_geom.y_return, &getted_geom.width_return,
+               &getted_geom.height_return, &getted_geom.border_width_return,
+               &getted_geom.depth_return);
+
+  sprintf(string, "%d--%d", getted_geom.width_return,
+          getted_geom.height_return);
+  XClearWindow(dpy, indicator);
+  XMoveWindow(dpy, indicator,
+              getted_geom.width_return / 2 - indicator_width / 2,
+              getted_geom.height_return / 2 - indicator_height / 2);
+
+  XGetGeometry(dpy, indicator, &getted_geom.root_return, &getted_geom.x_return,
+               &getted_geom.y_return, &getted_geom.width_return,
+               &getted_geom.height_return, &getted_geom.border_width_return,
+               &getted_geom.depth_return);
+
+  XDrawString(dpy, indicator, gc, indicator_width / 4, indicator_height / 2,
+              string, strlen(string));
 }
