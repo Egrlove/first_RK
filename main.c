@@ -1,29 +1,4 @@
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <stdio.h>
-#include <string.h>
-
-typedef struct {
-  Window root_return;
-  int x_return, y_return;
-  unsigned int width_return, height_return;
-  unsigned int border_width_return;
-  unsigned int depth_return;
-} geom;
-
-static void create_gc(Display *dpy, int screen, Window win,
-                      XFontStruct *fontInfo, GC *gc) {
-  XGCValues gr_values;
-  gr_values.font = fontInfo->fid;
-  gr_values.foreground = BlackPixel(dpy, screen);
-  *gc = XCreateGC(dpy, win, GCFont + GCForeground + GCBackground, &gr_values);
-}
-
-void config(XEvent *, geom, Window[], Window *);
-void draw_resolution(Window win, Window indicator, geom getted_geom, GC gc,
-                     int indicator_height, int indicator_width);
-
-Display *dpy;
+#include "var.h"
 
 int main(int argc, char *argv[]) {
   Window win;
@@ -39,22 +14,29 @@ int main(int argc, char *argv[]) {
   Window minus_box;
   Window V_box;
   Window tools[4];
-  //=============================
   XSetWindowAttributes attr;
+  //=============================
   unsigned long mask = 0;
   int done = 0;
   int disp_width;
   int disp_height;
   int win_width = 500;
   int win_height = 500;
+  char c;
   int screen;
+  int depth;
 
   XEvent event;
   GC gc;
-  int depth;
   XSizeHints hint;
   XFontStruct *fontInfo;
   geom getted_geom;
+
+  if (argc < 2) {
+    printf("Net Arguments\n");
+    return 1;
+  }
+  sscanf(argv[1], "%d%c%d", &win_width, &c, &win_height);
 
   dpy = XOpenDisplay(NULL); /* X display structure */
   screen = DefaultScreen(dpy);
@@ -62,8 +44,13 @@ int main(int argc, char *argv[]) {
   disp_height = DisplayHeight(dpy, screen);
   depth = DefaultDepth(dpy, screen);
   fontInfo = XLoadQueryFont(dpy, "fixed");
-
   attr.background_pixel = 0x00FF00;
+
+  if (win_width > disp_width || win_height > disp_height) {
+    printf("Too high resolution, used default\n");
+    win_width = 500;
+    win_height = 500;
+  }
 
   /* Main Window */
   win = XCreateWindow(dpy, DefaultRootWindow(dpy), disp_width / 2,
@@ -161,63 +148,4 @@ int main(int argc, char *argv[]) {
   XDestroyWindow(dpy, win);
   XCloseDisplay(dpy);
   return (done);
-}
-
-void config(XEvent *ev, geom getted_geom, Window tools[], Window *win) {
-  int delta = 20;
-  int i;
-  static int mode = 0; /* mode=0 - V ; mode=1 -H  */
-  for (i = 0; i < 4; ++i) {
-    if (ev->xbutton.window == tools[i])
-      break;
-  }
-  XGetGeometry(dpy, *win, &getted_geom.root_return, &getted_geom.x_return,
-               &getted_geom.y_return, &getted_geom.width_return,
-               &getted_geom.height_return, &getted_geom.border_width_return,
-               &getted_geom.depth_return);
-  switch (i) {
-  case 1:
-    mode ? XResizeWindow(dpy, *win, getted_geom.width_return + delta,
-                         getted_geom.height_return)
-         : XResizeWindow(dpy, *win, getted_geom.width_return,
-                         getted_geom.height_return + delta);
-    break;
-
-  case 2:
-    mode ? XResizeWindow(dpy, *win, getted_geom.width_return - delta,
-                         getted_geom.height_return)
-         : XResizeWindow(dpy, *win, getted_geom.width_return,
-                         getted_geom.height_return - delta);
-    break;
-  case 3:
-    mode = mode ? 0 : 1;
-    break;
-  default:
-    break;
-  }
-}
-
-void draw_resolution(Window win, Window indicator, geom getted_geom, GC gc,
-                     int indicator_height, int indicator_width) {
-  char string[30];
-
-  XGetGeometry(dpy, win, &getted_geom.root_return, &getted_geom.x_return,
-               &getted_geom.y_return, &getted_geom.width_return,
-               &getted_geom.height_return, &getted_geom.border_width_return,
-               &getted_geom.depth_return);
-
-  sprintf(string, "%d--%d", getted_geom.width_return,
-          getted_geom.height_return);
-  XClearWindow(dpy, indicator);
-  XMoveWindow(dpy, indicator,
-              getted_geom.width_return / 2 - indicator_width / 2,
-              getted_geom.height_return / 2 - indicator_height / 2);
-
-  XGetGeometry(dpy, indicator, &getted_geom.root_return, &getted_geom.x_return,
-               &getted_geom.y_return, &getted_geom.width_return,
-               &getted_geom.height_return, &getted_geom.border_width_return,
-               &getted_geom.depth_return);
-
-  XDrawString(dpy, indicator, gc, indicator_width / 4, indicator_height / 2,
-              string, strlen(string));
 }
